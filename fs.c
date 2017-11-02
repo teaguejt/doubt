@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -57,10 +58,10 @@ void usage(char **argv) {
 void diagnostics(char *container) {
     printf("DOUBT DIAGNOSTICS\n");
     printf("=================\n");
-    printf("size of dcont:  %d\n", sizeof(struct dcont));
-    printf("size of dnode:  %d\n", sizeof(struct dnode));
-    printf("size of dblock: %d\n", sizeof(struct data_block));
-    printf("size of pblock: %d\n", sizeof(struct ptr_block));
+    printf("size of dcont:  %d\n", (int)sizeof(struct dcont));
+    printf("size of dnode:  %d\n", (int)sizeof(struct dnode));
+    printf("size of dblock: %d\n", (int)sizeof(struct data_block));
+    printf("size of pblock: %d\n", (int)sizeof(struct ptr_block));
 
     if(container) {
     }
@@ -97,7 +98,7 @@ int create_container(char *name, int size) {
     
     /* Informational output */
     printf("doubt: creating container %s with %d data blocks:\n", name, size);
-    printf("       %d bytes for the container\n", sizeof(struct dcont));
+    printf("       %d bytes for the container\n", (int)sizeof(struct dcont));
     printf("       %d bytes for the dnodes\n", size_dnodes);
     printf("       %d bytes for the bitmask\n", size_mask);
     printf("       %lu bytes for data\n", dsize);
