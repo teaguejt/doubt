@@ -40,7 +40,7 @@ struct dcont {
     uint64_t num_dnodes;    // Number of dnodes in container
     uint16_t v_min;         // Minor version
     uint16_t m_maj;         // Major version
-    uint16_t bm_offset;     // Bitmask offset
+    uint32_t bm_offset;     // Bitmask offset
     uint32_t dn_offset;     // dnode offset
     uint32_t dt_offset;     // Data offset
 };
@@ -74,12 +74,13 @@ int create_container(char *name, int size) {
     int fd;
     int perm;
     uint8_t zero = 0;
-    uint16_t mask_offset;
+    uint32_t mask_offset;
     uint32_t node_offset;
     uint32_t data_offset;
     uint64_t num_nodes = size;
     int size_dnodes = size * sizeof(struct dnode);
     int size_mask   = size / 8;
+    char *buf;
 
     /* Calculate sizes for the container */
     dsize = size;
@@ -103,13 +104,12 @@ int create_container(char *name, int size) {
     printf("       %d bytes for the bitmask\n", size_mask);
     printf("       %lu bytes for data\n", dsize);
     printf("       %lu bytes total\n", tsize);
-    printf("       %" PRIu16 " (0x%" PRIx16 ") mask offset\n", mask_offset,
+    printf("       %" PRIu32 " (0x%" PRIx32 ") mask offset\n", mask_offset,
             mask_offset);
-    printf("       %" PRIu32 " (0x%" PRIx32 ") mask offset\n", node_offset,
+    printf("       %" PRIu32 " (0x%" PRIx32 ") node offset\n", node_offset,
             node_offset);
-    printf("       %" PRIu32 " (0x%" PRIx32 ") mask offset\n", data_offset,
+    printf("       %" PRIu32 " (0x%" PRIx32 ") data offset\n", data_offset,
             data_offset);
-
 
     /* Create the container, starting with the "dcont" struct */
     perm = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
@@ -141,7 +141,7 @@ int create_container(char *name, int size) {
         return -6;
     }
 
-    if(write(fd, &mask_offset, 2) != 2) {
+    if(write(fd, &mask_offset, 4) != 4) {
         printf("doubt: write error while writing mask offset\n");
         return -7;
     }
@@ -157,26 +157,47 @@ int create_container(char *name, int size) {
     }
 
     /* Now write the bitmask, dnodes, and blocks -- all zeros */
+    /* There's GOT to be a better way to do this... */
+    buf = malloc(sizeof(char) * size_mask);
+    if(!buf) {
+        printf("doubt: malloc error.\n");
+        return -13;
+    }
     for(i = 0; i < size_mask; i++) {
-        if(write(fd, &zero, 1) != 1) {
-            printf("doubt: write error while writing bitmask\n");
-            return -10;
-        }
+        buf[i] = 0;
+    }
+    if(write(fd, &buf[0], size_mask) != size_mask) {
+        printf("doubt: write error while writing bitmask\n");
+        return -10;
     }
 
+    free(buf);
+    buf = malloc(sizeof(char) * size_dnodes);
+    if(!buf) {
+        printf("doubt: malloc error.\n");
+        return -14;
+    }
     for(i = 0; i < size_dnodes; i++) {
-        if(write(fd, &zero, 1) != 1) {
-            printf("doubt: write error while writing dnodes\n");
-            return -11;
-        }
+        buf[i] = 0;
+    }
+    if(write(fd, &buf[0], size_dnodes) != size_dnodes) {
+        printf("doubt: write error while writing dnodes\n");
+        return -11;
     }
 
-    for(i = 0; i < dsize; i++) {
-        if(write(fd, &zero, 1) != 1) {
+    free(buf);
+    buf = malloc(sizeof(char) * BLOCK_SIZE);
+    for(i = 0; i < BLOCK_SIZE; i++) {
+        buf[i] = 0;
+    }
+    for(i = 0; i < size; i++) {
+        if(write(fd, &buf[0], BLOCK_SIZE) != BLOCK_SIZE) {
             printf("doubt: write error while writing data blocks\n");
             return -12;
         }
     }
+    free(buf);
+    close(fd);
 
     return 0;
 }
